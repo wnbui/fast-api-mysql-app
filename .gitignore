@@ -1,6 +1,3 @@
-# Created by https://www.toptal.com/developers/gitignore/api/python,flask
-# Edit at https://www.toptal.com/developers/gitignore?templates=python,flask
-
 ### Flask ###
 instance/*
 !instance/.gitignore
@@ -259,4 +256,34 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/python,flask
+# FastAPI
+.idea
+.ipynb_checkpoints
+.mypy_cache
+.vscode
+__pycache__
+.pytest_cache
+htmlcov
+dist
+site
+.coverage*
+coverage.xml
+.netlify
+test.db
+log.txt
+Pipfile.lock
+env3.*
+env
+docs_build
+site_build
+venv
+docs.zip
+archive.zip
+
+# vim temporary files
+*~
+.*.sw?
+.cache
+
+# macOS
+.DS_Store
