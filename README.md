@@ -1,1 +1,1 @@
-# fast-api-flask-app
+# fast-api-mysql-flask-app
