@@ -109,3 +109,35 @@ class ItemCreate(BaseModel):
         if not re.match(r'^(0[1-9]|1[0-2])/([0][1-9]|[12][0-9]|3[01])/(\d{4})$', date):
             raise ValueError('Date must be in format MM/DD/YYYY')
         return date
+   
+# /register POST
+
+# /login POST
+
+# /logout POST
+
+## User Routes
+
+# /inventory GET
+
+# /invetory/item_id GET
+
+# /inventory POST
+
+# /inventory/item_id PUT
+
+# /inventory/item_id DELETE
+
+## Admin Routes
+
+# /admin/inventory GET
+
+# /admin/inventory/user GET
+
+# /admin/inventory/user/item_id GET
+
+# /admin/inventory/user POST
+
+# /admin/inventory/user/item_id PUT
+
+# /admin/inventory/user/item_id DELETE
