@@ -1,12 +1,16 @@
 from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, EmailStr, ValidationError, field_validator
 from sqlalchemy import create_engine, Column, Integer, String, Float, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
+import jwt
 import re
 import os
 
 app = FastAPI()
+
+security = HTTPBearer()
 
 DATABASE_URL = os.environ.get('DATABASE_HOST')
 engine = create_engine(DATABASE_URL)
@@ -20,7 +24,7 @@ def get_db():
     finally: 
         db.close()
 
-# SQLAlchemy 
+# SQLAlchemy Models
 class Item(Base):
     __tablename__ = "inventory"
 
@@ -41,6 +45,8 @@ class User(Base):
     role = Column(String(10), nullable=False)
 
 Base.metadata.create_all(bind=engine)
+
+# Pydantic Schemas
 
 class UserCreate(BaseModel):
     id: int
@@ -110,7 +116,10 @@ class ItemCreate(BaseModel):
             raise ValueError('Date must be in format MM/DD/YYYY')
         return date
    
+# JWT decorator
+
 # /register POST
+    # Add JWT
 
 # /login POST
 
