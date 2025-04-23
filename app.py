@@ -1,35 +1,31 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, EmailStr, ValidationError, field_validator, ConfigDict
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from sqlalchemy import create_engine, Column, Integer, String, Float, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
+from datetime import datetime, timedelta
 import jwt
 import re
 import os
 from dotenv import load_dotenv
 
-app = FastAPI()
-security = HTTPBearer()
-
+# Load environmentals and variables
 load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_HOST')
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set")
 
+# Database setup
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-user_model = {
-    "johndoe": {
-        "username": "johndoe",
-        "password": "#password1234",
-        "email": "user@email.com",
-        "role": "user"
-    }
-}
+# App and middleware
+app = FastAPI()
+security = HTTPBearer()
 
+# Database session
 def get_db():
     db = SessionLocal()
     try:
@@ -38,7 +34,6 @@ def get_db():
         db.close()
 
 # SQLAlchemy Models
-
 class Item(Base):
     __tablename__ = "inventory"
 
@@ -52,7 +47,7 @@ class Item(Base):
 class User(Base):
     __tablename__ = "users"
 
-
+    # id is automatically added by MySQL
     username = Column(String(50), nullable=False, primary_key=True, index=True)
     password = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False)
@@ -61,7 +56,6 @@ class User(Base):
 Base.metadata.create_all(bind=engine)
 
 # Pydantic Schemas
-
 class UserCreate(BaseModel):
     username: str
     password: str
