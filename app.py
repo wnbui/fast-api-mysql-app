@@ -1,21 +1,34 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel, EmailStr, ValidationError, field_validator
+from pydantic import BaseModel, EmailStr, ValidationError, field_validator, ConfigDict
 from sqlalchemy import create_engine, Column, Integer, String, Float, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import jwt
 import re
 import os
+from dotenv import load_dotenv
 
 app = FastAPI()
-
 security = HTTPBearer()
 
-DATABASE_URL = os.environ.get('DATABASE_HOST')
+load_dotenv()
+DATABASE_URL = os.getenv('DATABASE_HOST')
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set")
+
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoFlush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+user_model = {
+    "johndoe": {
+        "username": "johndoe",
+        "password": "#password1234",
+        "email": "user@email.com",
+        "role": "user"
+    }
+}
 
 def get_db():
     db = SessionLocal()
@@ -25,6 +38,7 @@ def get_db():
         db.close()
 
 # SQLAlchemy Models
+
 class Item(Base):
     __tablename__ = "inventory"
 
@@ -38,10 +52,10 @@ class Item(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), nullable=False)
+
+    username = Column(String(50), nullable=False, primary_key=True, index=True)
     password = Column(String(255), nullable=False)
-    email = Column(String, nullable=False)
+    email = Column(String(255), nullable=False)
     role = Column(String(10), nullable=False)
 
 Base.metadata.create_all(bind=engine)
@@ -49,15 +63,14 @@ Base.metadata.create_all(bind=engine)
 # Pydantic Schemas
 
 class UserCreate(BaseModel):
-    id: int
     username: str
     password: str
-    email: str
+    email: EmailStr
     role: str
 
     @field_validator('password', mode='after')
     @classmethod
-    def password_validation(cls, password: String) -> String:
+    def password_validation(cls, password: str) -> str:
         if len(password) < 8:
             raise ValueError("Password must be at least 8 characters long.")
         if not re.search(r'\d', password):
@@ -69,38 +82,35 @@ class UserCreate(BaseModel):
         if not re.search(r'[\W_]', password):
             raise ValueError("Password must contain at least one special character.")
         return password
-
-    @field_validator('email', mode='after')
-    @classmethod
-    def is_valid_email(cls, email: String) -> String:
-        if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", email):
-            raise ValueError("'Email is not in format user@email.com'")
-        return email
     
     @field_validator('role', mode='after')
     @classmethod
-    def has_role(cls, role: String) -> String:
+    def has_role(cls, role: str) -> str:
         if not (role == "user" or role == "admin"):
-            raise ValidationError('User is missing role (user or admin)')
+            raise ValueError("Role must be 'user' or 'admin'")
         return role
     
 class UserOut(BaseModel):
-    id: int
+    username: str
+    password: str # Ideally you want to hide this
+    email: EmailStr # Ideally you want to hide this
+    role: str # Ideally you want to hide this
+
+    model_config = ConfigDict(from_attributes=True)
+
+class UserRead(BaseModel):
     username: str
     password: str
-    email: str
-    role: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ItemCreate(BaseModel):
     id: int
     name: str
-    description: String
+    description: str
     price: float
     quantity: int
-    last_update: String
+    last_update: str
 
     @field_validator('quantity', mode='after')
     @classmethod
@@ -111,17 +121,44 @@ class ItemCreate(BaseModel):
     
     @field_validator('last_update', mode='after')
     @classmethod
-    def is_valid_date(clas, date: String) -> String:
+    def is_valid_date(clas, date: str) -> str:
         if not re.match(r'^(0[1-9]|1[0-2])/([0][1-9]|[12][0-9]|3[01])/(\d{4})$', date):
             raise ValueError('Date must be in format MM/DD/YYYY')
         return date
-   
+
+class ItemOut(BaseModel):
+    id: int
+    name: str
+    description: str
+    price: float
+    quantity: int
+    last_update: str
+
+    model_config = ConfigDict(from_attributes=True)
+
 # JWT decorator
 
 # /register POST
     # Add JWT
+@app.post("/register", response_model=UserOut)
+def register_user(user: UserCreate, db: Session = Depends(get_db)):
+    existing_user = db.query(User).filter(User.username == user.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists.")
+    
+    new_user = User(username=user.username, password=user.password, email=user.email, role=user.role)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
 
 # /login POST
+@app.post("/login")
+def login_user(user: UserRead, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.username == user.username).first()
+    if not db_user or db_user.password != user.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials.")
+    return {"message": "Login successful."}
 
 # /logout POST
 
