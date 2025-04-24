@@ -38,10 +38,12 @@ class Item(Base):
     __tablename__ = "inventory"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(50), nullable=False)
     name = Column(String(50), nullable=False)
     description = Column(String(250), nullable=False)
-    quantity = Column(Integer, nullable=False)
     price = Column(Float(precision=2), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    condition = Column(String(10), nullable=False)
     last_update = Column(Date, nullable=False)
 
 class User(Base):
@@ -100,10 +102,12 @@ class UserRead(BaseModel):
 
 class ItemCreate(BaseModel):
     id: int
+    user_id: str
     name: str
     description: str
     price: float
     quantity: int
+    condition: str
     last_update: str
 
     @field_validator('quantity', mode='after')
@@ -122,10 +126,12 @@ class ItemCreate(BaseModel):
 
 class ItemOut(BaseModel):
     id: int
+    user_id: str
     name: str
     description: str
     price: float
     quantity: int
+    condition: str
     last_update: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -159,14 +165,49 @@ def login_user(user: UserRead, db: Session = Depends(get_db)):
 ## User Routes
 
 # /inventory GET
+@app.get("/inventory", response_model=list(ItemOut))
+def get_all_students(db: Session = Depends(get_db)):
+    return db.query(Item).all()
 
 # /invetory/item_id GET
+@app.get("/inventory/{item_id}", response_model=ItemOut)
+def get_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(Item).get(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found.")
+    return item
 
 # /inventory POST
+@app.post("/inventory", response_model=ItemOut)
+def add_item(item: ItemCreate, db: Session = Depends(get_db)):
+    new_item = Item(**item.model_dump())
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    return new_item
 
 # /inventory/item_id PUT
+@app.put("/inventory/{item_id}", response_model=ItemOut)
+def update_item(item_id: int, updated_item: ItemCreate, db: Session = Depends(get_db)):
+    item = db.query(Item).get(item_id)
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found.")
+    for key, value in updated_item.model_dump().items():
+        setattr(item, key, value)
+    db.commit()
+    db.refresh(item)
+    return item
 
 # /inventory/item_id DELETE
+@app.delete("/inventory/{item_id}")
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(Item).get(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found.")
+    db.delete(item)
+    db.commit()
+    return {"message": "Item {item_id} deleted successfully"}
 
 ## Admin Routes
 
