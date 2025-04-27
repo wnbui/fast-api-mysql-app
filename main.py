@@ -221,6 +221,7 @@ def get_item(item_id: int, current_user: dict = Depends(get_current_user), db: S
 def add_item(item_in: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if hasattr(item_in, 'user_id') and item_in.user_id != current_user["username"]:
         raise HTTPException(status_code=403, detail="Cannot create item for another user.")
+    
     new_item = Item(**item_in.model_dump())
     new_item.user_id = current_user["username"]
     db.add(new_item)
@@ -232,11 +233,11 @@ def add_item(item_in: ItemCreate, current_user: dict = Depends(get_current_user)
 @app.put("/inventory/{item_id}", response_model=ItemOut, status_code=200)
 def update_item(item_id: int, updated_item: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     item = db.get(Item, item_id)
-
     if not item:
         raise HTTPException(status_code=404, detail="Item not found.")
     if item.user_id != current_user["username"]:
         raise HTTPException(status_code=403, detail="Not authorized to edit an item of another user.")
+    
     for key, value in updated_item.model_dump().items():
         setattr(item, key, value)
     db.commit()
@@ -251,19 +252,104 @@ def delete_item(item_id: int, current_user: dict = Depends(get_current_user), db
         raise HTTPException(status_code=404, detail="Item not found.")
     if item.user_id != current_user["username"]:
         raise HTTPException(status_code=403, detail="Not authorized to edit an item of another user.")
+    
     db.delete(item)
     db.commit()
     return {"message": "Item deleted successfully"}
 
 ## Admin Routes
 # /admin/inventory GET
+@app.get("/admin/inventory", response_model=List[ItemOut], status_code=200)
+def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    
+    items = db.scalars(select(Item)).all()
+    return items
 
 # /admin/inventory/user GET
+@app.get("/admin/inventory/{user}", response_model=List[ItemOut], status_code=200)
+def admin_get_all_user_items(user: str, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    
+    existing_user = db.scalars(select(User).filter_by(username=user)).first()
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User does not exist.")
+    
+    items = db.scalars(select(Item).filter_by(user_id=user)).all()
+    return items
 
 # /admin/inventory/user/item_id GET
+@app.get("/admin/inventory/{user}/{item_id}", response_model=ItemOut, status_code=200)
+def admin_get_user_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    
+    existing_user = db.scalars(select(User).filter_by(username=user)).first()
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User does not exist.")
+    
+    item = db.scalars(select(Item).filter_by(user_id=user, id=item_id)).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found for a specified user.")
+    return item
 
 # /admin/inventory/user POST
+@app.post("/admin/inventory/{user}", response_model=ItemOut, status_code=201)
+def admin_add_item(user: str, item_in: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    if item_in.user_id != user:
+        raise HTTPException(status_code=403, detail="user_id for item associated with wrong user.")
+   
+    existing_user = db.scalars(select(User).filter_by(username=user)).first()
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User does not exist.")
+    
+    new_item = Item(**item_in.model_dump())
+    new_item.user_id = user
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    return new_item
 
 # /admin/inventory/user/item_id PUT
+@app.put("/admin/inventory/{user}/{item_id}", response_model=ItemOut, status_code=200)
+def admin_update_item(user: str, item_id: int, updated_item: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    if updated_item.user_id != user:
+        raise HTTPException(status_code=403, detail="user_id for item associated with wrong user.")
+    
+    existing_user = db.scalars(select(User).filter_by(username=user)).first()
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User does not exist.")
+    
+    item = db.scalars(select(Item).filter_by(user_id=user, id=item_id)).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found for a specified user.")
+    
+    for key, value in updated_item.model_dump().items():
+        setattr(item, key, value)
+    db.commit()
+    db.refresh(item)
+    return item
 
 # /admin/inventory/user/item_id DELETE
+@app.delete("/admin/inventory/{user}/{item_id}")
+def admin_delete_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    
+    existing_user = db.scalars(select(User).filter_by(username=user)).first()
+    if not existing_user:
+        raise HTTPException(status_code=404, detail="User does not exist.")
+    
+    item = db.scalars(select(Item).filter_by(user_id=user, id=item_id)).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found for a specified user.")
+    
+    db.delete(item)
+    db.commit()
+    return {"message": "Item deleted successfully"}
