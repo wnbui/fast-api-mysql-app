@@ -65,7 +65,7 @@ class Item(Base):
     price = Column(Numeric(10,2), nullable=False)
     quantity = Column(Integer, nullable=False)
     condition = Column(String(15), nullable=False)
-    last_updated = Column(String(10), nullable=False)
+    last_updated = Column(Date, nullable=False)
 
 class User(Base):
     __tablename__ = "users"
