@@ -164,7 +164,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Security(securi
 
 # /register POST
 @app.post("/register", response_model=UserOut, status_code=201)
-def register_user(user: UserCreate, db: Session = Depends(get_db)):
+def register_user(user: UserCreate, db: Session = Depends(get_db)) -> UserOut:
     existing_user = db.scalars(select(User).filter_by(username=user.username)).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists.")
@@ -177,7 +177,7 @@ def register_user(user: UserCreate, db: Session = Depends(get_db)):
 
 # /login POST
 @app.post("/login", status_code=200)
-def login_user(request: Request, response: Response, user: UserRead, db: Session = Depends(get_db)):
+def login_user(request: Request, response: Response, user: UserRead, db: Session = Depends(get_db)) -> dict:
     db_user = db.scalars(select(User).filter_by(username=user.username)).first()
     if not db_user or db_user.password != user.password:
         raise HTTPException(status_code=401, detail="Invalid credentials.")
@@ -198,7 +198,7 @@ def login_user(request: Request, response: Response, user: UserRead, db: Session
 
 # /logout POST
 @app.post("/logout", status_code=200)
-def logout(request: Request, response: Response):
+def logout(request: Request, response: Response) -> dict:
     request.session.clear()
     response.delete_cookie("session")
     return {"message": "Logged out successfully"}
@@ -206,13 +206,13 @@ def logout(request: Request, response: Response):
 ## User Routes
 # /inventory GET
 @app.get("/inventory", response_model=list[ItemOut], status_code=200)
-def get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ItemOut]:
     items = db.scalars(select(Item).filter_by(user_id=current_user["username"])).all()
     return items
 
 # /inventory/item_id GET
 @app.get("/inventory/{item_id}", response_model=ItemOut, status_code=200)
-def get_item(item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def get_item(item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> ItemOut:
     item = db.get(Item, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found.")
@@ -222,7 +222,7 @@ def get_item(item_id: int, current_user: dict = Depends(get_current_user), db: S
 
 # /inventory POST
 @app.post("/inventory", response_model=ItemOut, status_code=201)
-def add_item(item_in: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def add_item(item_in: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> ItemOut:
     if hasattr(item_in, 'user_id') and item_in.user_id != current_user["username"]:
         raise HTTPException(status_code=403, detail="Cannot create item for another user.")
     
@@ -235,7 +235,7 @@ def add_item(item_in: ItemCreate, current_user: dict = Depends(get_current_user)
 
 # /inventory/item_id PUT
 @app.put("/inventory/{item_id}", response_model=ItemOut, status_code=200)
-def update_item(item_id: int, updated_item: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def update_item(item_id: int, updated_item: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> ItemOut:
     item = db.get(Item, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found.")
@@ -250,7 +250,7 @@ def update_item(item_id: int, updated_item: ItemCreate, current_user: dict = Dep
 
 # /inventory/item_id DELETE
 @app.delete("/inventory/{item_id}")
-def delete_item(item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_item(item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     item = db.get(Item, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Item not found.")
@@ -270,7 +270,7 @@ def require_admin(role: str):
 
 # /admin/inventory GET
 @app.get("/admin/inventory", response_model=list[ItemOut], status_code=200)
-def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ItemOut]:
     require_admin(current_user["role"])
     
     items = db.scalars(select(Item)).all()
@@ -278,7 +278,7 @@ def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Sess
 
 # /admin/inventory/user GET
 @app.get("/admin/inventory/{user}", response_model=list[ItemOut], status_code=200)
-def admin_get_all_user_items(user: str, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def admin_get_all_user_items(user: str, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> list[ItemOut]:
     require_admin(current_user["role"])
     
     existing_user = db.scalars(select(User).filter_by(username=user)).first()
@@ -290,7 +290,7 @@ def admin_get_all_user_items(user: str, current_user: dict = Depends(get_current
 
 # /admin/inventory/user/item_id GET
 @app.get("/admin/inventory/{user}/{item_id}", response_model=ItemOut, status_code=200)
-def admin_get_user_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def admin_get_user_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> ItemOut:
     require_admin(current_user["role"])
     
     existing_user = db.scalars(select(User).filter_by(username=user)).first()
@@ -304,7 +304,7 @@ def admin_get_user_item(user: str, item_id: int, current_user: dict = Depends(ge
 
 # /admin/inventory/user POST
 @app.post("/admin/inventory/{user}", response_model=ItemOut, status_code=201)
-def admin_add_item(user: str, item_in: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def admin_add_item(user: str, item_in: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> ItemOut:
     require_admin(current_user["role"])
 
     if item_in.user_id != user:
@@ -323,7 +323,7 @@ def admin_add_item(user: str, item_in: ItemCreate, current_user: dict = Depends(
 
 # /admin/inventory/user/item_id PUT
 @app.put("/admin/inventory/{user}/{item_id}", response_model=ItemOut, status_code=200)
-def admin_update_item(user: str, item_id: int, updated_item: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def admin_update_item(user: str, item_id: int, updated_item: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> ItemOut:
     require_admin(current_user["role"])
 
     if updated_item.user_id != user:
@@ -345,7 +345,7 @@ def admin_update_item(user: str, item_id: int, updated_item: ItemCreate, current
 
 # /admin/inventory/user/item_id DELETE
 @app.delete("/admin/inventory/{user}/{item_id}")
-def admin_delete_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+def admin_delete_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     require_admin(current_user["role"])
     
     existing_user = db.scalars(select(User).filter_by(username=user)).first()
