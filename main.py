@@ -264,11 +264,16 @@ def delete_item(item_id: int, current_user: dict = Depends(get_current_user), db
     return {"message": "Item deleted successfully"}
 
 ## Admin Routes
+
+# Helper function to veify role
+def require_admin(role: str):
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required.")
+
 # /admin/inventory GET
 @app.get("/admin/inventory", response_model=list[ItemOut], status_code=200)
 def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    require_admin(current_user["role"])
     
     items = db.scalars(select(Item)).all()
     return items
@@ -276,8 +281,7 @@ def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Sess
 # /admin/inventory/user GET
 @app.get("/admin/inventory/{user}", response_model=list[ItemOut], status_code=200)
 def admin_get_all_user_items(user: str, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    require_admin(current_user["role"])
     
     existing_user = db.scalars(select(User).filter_by(username=user)).first()
     if not existing_user:
@@ -289,8 +293,7 @@ def admin_get_all_user_items(user: str, current_user: dict = Depends(get_current
 # /admin/inventory/user/item_id GET
 @app.get("/admin/inventory/{user}/{item_id}", response_model=ItemOut, status_code=200)
 def admin_get_user_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    require_admin(current_user["role"])
     
     existing_user = db.scalars(select(User).filter_by(username=user)).first()
     if not existing_user:
@@ -304,8 +307,8 @@ def admin_get_user_item(user: str, item_id: int, current_user: dict = Depends(ge
 # /admin/inventory/user POST
 @app.post("/admin/inventory/{user}", response_model=ItemOut, status_code=201)
 def admin_add_item(user: str, item_in: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    require_admin(current_user["role"])
+
     if item_in.user_id != user:
         raise HTTPException(status_code=403, detail="user_id for item associated with wrong user.")
    
@@ -323,8 +326,8 @@ def admin_add_item(user: str, item_in: ItemCreate, current_user: dict = Depends(
 # /admin/inventory/user/item_id PUT
 @app.put("/admin/inventory/{user}/{item_id}", response_model=ItemOut, status_code=200)
 def admin_update_item(user: str, item_id: int, updated_item: ItemCreate, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    require_admin(current_user["role"])
+
     if updated_item.user_id != user:
         raise HTTPException(status_code=403, detail="user_id for item associated with wrong user.")
     
@@ -345,8 +348,7 @@ def admin_update_item(user: str, item_id: int, updated_item: ItemCreate, current
 # /admin/inventory/user/item_id DELETE
 @app.delete("/admin/inventory/{user}/{item_id}")
 def admin_delete_item(user: str, item_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin access (role) required.")
+    require_admin(current_user["role"])
     
     existing_user = db.scalars(select(User).filter_by(username=user)).first()
     if not existing_user:
