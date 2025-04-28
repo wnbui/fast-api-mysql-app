@@ -11,7 +11,6 @@ import jwt
 import re
 import os
 from dotenv import load_dotenv
-from typing import List
 
 # Load environmentals and variables
 load_dotenv()
@@ -208,7 +207,7 @@ def logout(request: Request, response: Response):
 
 ## User Routes
 # /inventory GET
-@app.get("/inventory", response_model=List[ItemOut], status_code=200)
+@app.get("/inventory", response_model=list[ItemOut], status_code=200)
 def get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     items = db.scalars(select(Item).filter_by(user_id=current_user["username"])).all()
     return items
@@ -266,7 +265,7 @@ def delete_item(item_id: int, current_user: dict = Depends(get_current_user), db
 
 ## Admin Routes
 # /admin/inventory GET
-@app.get("/admin/inventory", response_model=List[ItemOut], status_code=200)
+@app.get("/admin/inventory", response_model=list[ItemOut], status_code=200)
 def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access (role) required.")
@@ -275,7 +274,7 @@ def admin_get_all_items(current_user: dict = Depends(get_current_user), db: Sess
     return items
 
 # /admin/inventory/user GET
-@app.get("/admin/inventory/{user}", response_model=List[ItemOut], status_code=200)
+@app.get("/admin/inventory/{user}", response_model=list[ItemOut], status_code=200)
 def admin_get_all_user_items(user: str, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin access (role) required.")
