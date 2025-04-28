@@ -7,9 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from starlette.middleware.sessions import SessionMiddleware
 import datetime as dt
 from datetime import date
-import jwt
-import re
-import os
+import jwt, os, re
 from dotenv import load_dotenv
 
 # Load environmentals and variables
