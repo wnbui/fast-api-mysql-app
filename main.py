@@ -86,7 +86,14 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=5, max_length=50)
     password: str = Field(..., min_length=8, max_length=255)
     email: EmailStr
-    role: str = Field(..., pattern="^(user|admin)$", description="Must be either 'user' or 'admin'")
+    role: str
+
+    @field_validator('role', mode='after')
+    @classmethod
+    def role_validation(cls, role: str) -> str:
+        if not (role == "user" or role == "admin"):
+            raise ValueError("Role must either be 'user' or 'admin'")
+        return role
 
     @field_validator('password', mode='after')
     @classmethod
