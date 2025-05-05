@@ -134,7 +134,7 @@ class ItemOut(BaseModel):
     price: float
     quantity: int
     condition: str
-    last_updated: str
+    last_updated: date
 
     model_config = ConfigDict(from_attributes=True)
 
